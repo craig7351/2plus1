@@ -1,7 +1,7 @@
 import Peer from 'peerjs';
 import type { DataConnection } from 'peerjs';
 
-export type PeerMessageType = 'INPUT' | 'STATUS';
+export type PeerMessageType = 'INPUT' | 'STATUS' | 'RESTART' | 'GAME_OVER';
 
 export interface PeerMessage {
     type: PeerMessageType;

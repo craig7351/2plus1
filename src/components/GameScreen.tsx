@@ -50,6 +50,8 @@ const GameScreen: React.FC = () => {
                     if (msg && msg.type === 'INPUT') {
                         const { input, pressed } = msg.payload;
                         engineRef.current.handleInput(conn.peer, input, pressed);
+                    } else if (msg && msg.type === 'RESTART') {
+                        engineRef.current.restartGame();
                     }
                 });
 
@@ -65,12 +67,26 @@ const GameScreen: React.FC = () => {
 
         initHost();
 
+        // 追蹤上次遊戲狀態
+        let lastStatus = engineRef.current.state.status;
+
         // Game Loop
         const loop = () => {
             engineRef.current.update();
             if (rendererRef.current) {
                 rendererRef.current.draw(engineRef.current.state);
             }
+
+            // 檢測遊戲結束並通知手機
+            const currentStatus = engineRef.current.state.status;
+            if (currentStatus === 'GAME_OVER' && lastStatus !== 'GAME_OVER') {
+                peerService.send({
+                    type: 'GAME_OVER',
+                    payload: { winner: engineRef.current.state.winner }
+                });
+            }
+            lastStatus = currentStatus;
+
             loopRef.current = requestAnimationFrame(loop);
         };
         loopRef.current = requestAnimationFrame(loop);

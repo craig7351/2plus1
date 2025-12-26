@@ -27,6 +27,23 @@ export class GameEngine {
         };
     }
 
+    // 重新開始遊戲
+    restartGame() {
+        // 重置所有玩家的 HP 和位置
+        this.state.players.forEach((player, index) => {
+            player.hp = INITIAL_HP;
+            player.x = index === 0 ? 100 : 700 - PLAYER_WIDTH;
+            player.y = 500 - PLAYER_HEIGHT; // GROUND_Y - PLAYER_HEIGHT
+            player.vx = 0;
+            player.vy = 0;
+            player.state = 'IDLE';
+            player.isGrounded = false;
+            player.attackCooldown = 0;
+        });
+        this.state.status = this.state.players.length >= 2 ? 'PLAYING' : 'WAITING';
+        this.state.winner = undefined;
+    }
+
     addPlayer(peerId: string): string {
         // 防止同一玩家重複加入
         const existingPlayer = this.state.players.find(p => p.peerId === peerId);
