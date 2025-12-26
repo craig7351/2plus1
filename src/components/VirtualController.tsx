@@ -3,6 +3,7 @@ import { peerService } from '../services/PeerService';
 import type { PeerMessage } from '../services/PeerService';
 import { useNavigate } from 'react-router-dom';
 import Joystick from './Joystick';
+import { soundService } from '../services/SoundService';
 
 const VirtualController: React.FC = () => {
     const navigate = useNavigate();
@@ -21,12 +22,14 @@ const VirtualController: React.FC = () => {
             await peerService.initialize();
             await peerService.connect(roomId);
             setStatus('CONNECTED');
+            soundService.connected();
 
             // 監聽來自 Host 的訊息
             peerService.onData((data: any) => {
                 const msg = data as PeerMessage;
                 if (msg && msg.type === 'GAME_OVER') {
                     setGameOver({ show: true, winner: msg.payload.winner });
+                    soundService.victory();
                 }
             });
         } catch (err: any) {
@@ -67,6 +70,7 @@ const VirtualController: React.FC = () => {
 
     const sendRestart = () => {
         if (status !== 'CONNECTED') return;
+        soundService.restart();
         const msg: PeerMessage = {
             type: 'RESTART',
             payload: {}

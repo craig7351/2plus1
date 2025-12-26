@@ -4,6 +4,7 @@ import type { PeerMessage } from '../services/PeerService';
 import { useNavigate } from 'react-router-dom';
 import { GameEngine } from '../game/GameEngine';
 import { Renderer } from '../game/Renderer';
+import { soundService } from '../services/SoundService';
 
 const GameScreen: React.FC = () => {
     const navigate = useNavigate();
@@ -66,6 +67,12 @@ const GameScreen: React.FC = () => {
         };
 
         initHost();
+
+        // 設置音效回調
+        engineRef.current.onJump = () => soundService.jump();
+        engineRef.current.onAttack = () => soundService.attack();
+        engineRef.current.onHit = () => soundService.hit();
+        engineRef.current.onGameOver = () => soundService.victory();
 
         // 追蹤上次遊戲狀態
         let lastStatus = engineRef.current.state.status;

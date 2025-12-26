@@ -20,6 +20,13 @@ export class GameEngine {
     public state: GameState;
     private inputs: Map<string, InputState> = new Map();
 
+    // 音效回調
+    public onJump?: () => void;
+    public onAttack?: () => void;
+    public onHit?: () => void;
+    public onGameStart?: () => void;
+    public onGameOver?: (winner: string) => void;
+
     constructor() {
         this.state = {
             players: [],
@@ -129,12 +136,14 @@ export class GameEngine {
                 player.vy = JUMP_FORCE;
                 player.isGrounded = false;
                 player.state = 'JUMP';
+                this.onJump?.();
             }
 
             // Attack
             if (input.A && player.attackCooldown <= 0) {
                 player.state = 'ATTACK';
                 player.attackCooldown = 20; // Frames
+                this.onAttack?.();
                 this.checkAttackHit(player);
             }
 
@@ -168,7 +177,9 @@ export class GameEngine {
         const loser = this.state.players.find(p => p.hp <= 0);
         if (loser) {
             this.state.status = 'GAME_OVER';
-            this.state.winner = this.state.players.find(p => p.hp > 0)?.id || 'Draw';
+            const winner = this.state.players.find(p => p.hp > 0)?.id || 'Draw';
+            this.state.winner = winner;
+            this.onGameOver?.(winner);
         }
     }
 
@@ -193,6 +204,7 @@ export class GameEngine {
             opponent.vx = attacker.direction * 10;
             opponent.vy = -5;
             opponent.isGrounded = false;
+            this.onHit?.();
         }
     }
 }
