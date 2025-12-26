@@ -6,7 +6,7 @@ import './index.css';
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/2plus1">
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Lobby />} />
