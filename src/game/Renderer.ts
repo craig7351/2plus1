@@ -1,4 +1,4 @@
-import type { GameState } from './GameState';
+import type { GameState, Player } from './GameState';
 
 // 粒子類型
 interface Particle {
@@ -416,7 +416,6 @@ export class Renderer {
 
     private drawBuffs(player: Player, x: number, y: number) {
         let buffX = x;
-        const iconSize = 25; // Slightly larger for clarity
         const gap = 30; // More space between icons
 
         if (player.speedBuffTimer > 0) {
