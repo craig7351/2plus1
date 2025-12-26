@@ -58,8 +58,44 @@ export class GameEngine {
                 // Top Right
                 { x: 600, y: 250, width: 100, height: 20, color: '#ffff33' }
             ],
+            items: [],
             status: 'WAITING'
         };
+    }
+
+    private lastItemSpawnTime = 0;
+    private readonly ITEM_SPAWN_INTERVAL = 10000; // 10 seconds
+    private readonly ITEM_LIFETIME = 8000; // 8 seconds
+
+    private spawnItem() {
+        // Limit max items
+        if (this.state.items.length >= 3) return;
+
+        // Random position
+        // 50% chance on platforms, 50% on ground
+        let x, y;
+        if (Math.random() > 0.5 && this.state.platforms.length > 0) {
+            const platform = this.state.platforms[Math.floor(Math.random() * this.state.platforms.length)];
+            x = platform.x + Math.random() * (platform.width - 30);
+            y = platform.y - 30;
+        } else {
+            x = 50 + Math.random() * (CANVAS_WIDTH - 100);
+            y = GROUND_Y - 30;
+        }
+
+        // Random type
+        const types: ('HEAL' | 'SPEED' | 'RAPID' | 'JUMP')[] = ['HEAL', 'SPEED', 'RAPID', 'JUMP'];
+        const type = types[Math.floor(Math.random() * types.length)];
+
+        this.state.items.push({
+            id: Date.now() + Math.random(),
+            x,
+            y,
+            type,
+            width: 30,
+            height: 30,
+            spawnTime: Date.now()
+        });
     }
 
     // 重新開始遊戲
@@ -111,7 +147,10 @@ export class GameEngine {
             direction,
             color,
             attackCooldown: 0,
-            shootCooldown: 0
+            shootCooldown: 0,
+            speedBuffTimer: 0,
+            rapidBuffTimer: 0,
+            jumpBuffTimer: 0
         };
 
         // Initialize input for this player
@@ -276,13 +315,22 @@ export class GameEngine {
             const input = this.inputs.get(player.peerId);
             if (!input) return;
 
+            // Buff checking
+            const moveSpeed = player.speedBuffTimer > 0 ? MOVE_SPEED * 1.5 : MOVE_SPEED;
+            const jumpForce = player.jumpBuffTimer > 0 ? JUMP_FORCE * 2 : JUMP_FORCE; // Double jump height
+
+            // Decrement timers
+            if (player.speedBuffTimer > 0) player.speedBuffTimer--;
+            if (player.rapidBuffTimer > 0) player.rapidBuffTimer--;
+            if (player.jumpBuffTimer > 0) player.jumpBuffTimer--;
+
             // Horizontal Movement
             if (input.LEFT) {
-                player.vx = -MOVE_SPEED;
+                player.vx = -moveSpeed;
                 player.direction = -1;
                 if (player.state !== 'JUMP' && player.state !== 'ATTACK') player.state = 'RUN';
             } else if (input.RIGHT) {
-                player.vx = MOVE_SPEED;
+                player.vx = moveSpeed;
                 player.direction = 1;
                 if (player.state !== 'JUMP' && player.state !== 'ATTACK') player.state = 'RUN';
             } else {
@@ -292,7 +340,7 @@ export class GameEngine {
 
             // Jump
             if (input.UP && player.isGrounded) {
-                player.vy = JUMP_FORCE;
+                player.vy = jumpForce;
                 player.isGrounded = false;
                 player.state = 'JUMP';
                 this.onJump?.();
@@ -308,6 +356,9 @@ export class GameEngine {
 
             // Shoot (B 按鍵)
             if (input.B && player.shootCooldown <= 0) {
+                // Determine cooldown based on rapid fire buff
+                const currentShootCooldown = player.rapidBuffTimer > 0 ? SHOOT_COOLDOWN * 0.3 : SHOOT_COOLDOWN;
+
                 // 檢查是否觸發必殺技
                 if (this.checkSpecialCommand(player.peerId)) {
                     this.shootBullet(player, 2); // 大子彈
@@ -316,7 +367,7 @@ export class GameEngine {
                     this.shootBullet(player, 1); // 普通子彈
                     this.onShoot?.();
                 }
-                player.shootCooldown = SHOOT_COOLDOWN;
+                player.shootCooldown = currentShootCooldown;
             }
 
             // Physics Application
@@ -367,6 +418,9 @@ export class GameEngine {
 
         // Update bullets
         this.updateBullets();
+
+        // Update Items
+        this.updateItems();
 
         // Check game over
         const loser = this.state.players.find(p => p.hp <= 0);
@@ -452,5 +506,57 @@ export class GameEngine {
 
         // 移除已處理的子彈
         this.state.bullets = this.state.bullets.filter(b => !bulletsToRemove.includes(b.id));
+    }
+
+    // 更新道具狀態
+    updateItems() {
+        const now = Date.now();
+
+        // Spawn items
+        if (now - this.lastItemSpawnTime > this.ITEM_SPAWN_INTERVAL) {
+            this.spawnItem();
+            this.lastItemSpawnTime = now;
+        }
+
+        // Remove expired items
+        this.state.items = this.state.items.filter(item => now - item.spawnTime < this.ITEM_LIFETIME);
+
+        // Check collection
+        this.state.players.forEach(player => {
+            this.checkItemCollection(player);
+        });
+    }
+
+    checkItemCollection(player: Player) {
+        const collectedItemIndex = this.state.items.findIndex(item =>
+            player.x < item.x + item.width &&
+            player.x + player.width > item.x &&
+            player.y < item.y + item.height &&
+            player.y + player.height > item.y
+        );
+
+        if (collectedItemIndex !== -1) {
+            const item = this.state.items[collectedItemIndex];
+
+            // Apply effect
+            switch (item.type) {
+                case 'HEAL':
+                    player.hp = Math.min(player.hp + 50, player.maxHp);
+                    break;
+                case 'SPEED':
+                    player.speedBuffTimer = 300; // 5 seconds
+                    break;
+                case 'RAPID':
+                    player.rapidBuffTimer = 300; // 5 seconds
+                    break;
+                case 'JUMP':
+                    player.jumpBuffTimer = 300; // 5 seconds
+                    break;
+            }
+
+            // Remove item
+            this.state.items.splice(collectedItemIndex, 1);
+            // Optional: Add sound effect callback here
+        }
     }
 }

@@ -193,7 +193,11 @@ export class Renderer {
         });
 
         // 繪製平台
+        // 繪製平台
         this.drawPlatforms(state);
+
+        // 繪製道具
+        this.drawItems(state);
 
         // 繪製地面
         const groundGradient = this.ctx.createLinearGradient(0, 500, 0, 600);
@@ -376,6 +380,68 @@ export class Renderer {
         return `rgb(${r}, ${g}, ${b})`;
     }
 
+    private drawItems(state: GameState) {
+        if (!state.items) return;
+
+        state.items.forEach(item => {
+            let color = 'white';
+            let label = '?';
+
+            switch (item.type) {
+                case 'HEAL': color = '#ff3333'; label = '❤'; break;
+                case 'SPEED': color = '#ffff33'; label = '⚡'; break;
+                case 'RAPID': color = '#aa33ff'; label = '🔫'; break;
+                case 'JUMP': color = '#33ff33'; label = '⏫'; break;
+            }
+
+            // Bobbing animation
+            const offsetY = Math.sin(Date.now() * 0.005) * 5;
+
+            this.ctx.shadowColor = color;
+            this.ctx.shadowBlur = 20;
+            this.ctx.fillStyle = color;
+            this.roundRect(item.x, item.y + offsetY, item.width, item.height, 5);
+
+            // Icon/Label
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '20px sans-serif';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(label, item.x + item.width / 2, item.y + item.height / 2 + offsetY);
+
+            this.ctx.shadowBlur = 0;
+            this.ctx.textBaseline = 'alphabetic'; // Reset baseline
+        });
+    }
+
+    private drawBuffs(player: Player, x: number, y: number) {
+        let buffX = x;
+        const iconSize = 25; // Slightly larger for clarity
+        const gap = 30; // More space between icons
+
+        if (player.speedBuffTimer > 0) {
+            this.ctx.font = '20px sans-serif';
+            this.ctx.fillStyle = '#ffff33';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('⚡', buffX, y);
+            buffX += gap;
+        }
+        if (player.rapidBuffTimer > 0) {
+            this.ctx.font = '20px sans-serif';
+            this.ctx.fillStyle = '#aa33ff';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('🔫', buffX, y);
+            buffX += gap;
+        }
+        if (player.jumpBuffTimer > 0) {
+            this.ctx.font = '20px sans-serif';
+            this.ctx.fillStyle = '#33ff33';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('⏫', buffX, y);
+            buffX += gap;
+        }
+    }
+
     drawUI(state: GameState) {
         const barWidth = 300;
         const barHeight = 25;
@@ -416,6 +482,9 @@ export class Renderer {
             this.ctx.font = '14px monospace';
             this.ctx.textAlign = 'center';
             this.ctx.fillText(`${Math.max(0, player.hp)}`, x + barWidth / 2, y + 17);
+
+            // 繪製 Buff 狀態 (血條下方)
+            this.drawBuffs(player, player.id === 'P1' ? x + 20 : x + barWidth - 20, y + barHeight + 25);
         });
 
         if (state.status === 'WAITING') {

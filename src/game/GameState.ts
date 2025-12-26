@@ -15,6 +15,9 @@ export interface Player {
     color: string;
     attackCooldown: number;
     shootCooldown: number; // 子彈冷卻
+    speedBuffTimer: number;
+    rapidBuffTimer: number;
+    jumpBuffTimer: number;
 }
 
 export interface Bullet {
@@ -25,6 +28,16 @@ export interface Bullet {
     vx: number;
     color: string;
     size: number; // 子彈大小 (1 = 普通, 2 = 大)
+}
+
+export interface Item {
+    id: number;
+    x: number;
+    y: number;
+    type: 'HEAL' | 'SPEED' | 'RAPID' | 'JUMP';
+    width: number;
+    height: number;
+    spawnTime: number;
 }
 
 export interface Platform {
@@ -39,6 +52,7 @@ export interface GameState {
     players: Player[];
     bullets: Bullet[];
     platforms: Platform[];
+    items: Item[];
     status: 'WAITING' | 'PLAYING' | 'GAME_OVER';
     winner?: string;
 }
