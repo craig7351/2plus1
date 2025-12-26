@@ -1,5 +1,5 @@
-import type { GameState, Player } from './GameState';
-import { INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT } from './GameState';
+import type { GameState, Player, Bullet } from './GameState';
+import { INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT, BULLET_SPEED, BULLET_DAMAGE, SHOOT_COOLDOWN } from './GameState';
 
 const GRAVITY = 0.5;
 const MOVE_SPEED = 5;
@@ -24,12 +24,16 @@ export class GameEngine {
     public onJump?: () => void;
     public onAttack?: () => void;
     public onHit?: () => void;
+    public onShoot?: () => void;
     public onGameStart?: () => void;
     public onGameOver?: (winner: string) => void;
+
+    private bulletIdCounter = 0;
 
     constructor() {
         this.state = {
             players: [],
+            bullets: [],
             status: 'WAITING'
         };
     }
@@ -46,7 +50,9 @@ export class GameEngine {
             player.state = 'IDLE';
             player.isGrounded = false;
             player.attackCooldown = 0;
+            player.shootCooldown = 0;
         });
+        this.state.bullets = [];
         this.state.status = this.state.players.length >= 2 ? 'PLAYING' : 'WAITING';
         this.state.winner = undefined;
     }
@@ -80,7 +86,8 @@ export class GameEngine {
             state: 'IDLE',
             direction,
             color,
-            attackCooldown: 0
+            attackCooldown: 0,
+            shootCooldown: 0
         };
 
         // Initialize input for this player
@@ -139,12 +146,19 @@ export class GameEngine {
                 this.onJump?.();
             }
 
-            // Attack
+            // Attack (A 按鍵)
             if (input.A && player.attackCooldown <= 0) {
                 player.state = 'ATTACK';
-                player.attackCooldown = 20; // Frames
+                player.attackCooldown = 20;
                 this.onAttack?.();
                 this.checkAttackHit(player);
+            }
+
+            // Shoot (B 按鍵)
+            if (input.B && player.shootCooldown <= 0) {
+                this.shootBullet(player);
+                player.shootCooldown = SHOOT_COOLDOWN;
+                this.onShoot?.();
             }
 
             // Physics Application
@@ -171,7 +185,13 @@ export class GameEngine {
                     player.state = 'IDLE';
                 }
             }
+            if (player.shootCooldown > 0) {
+                player.shootCooldown--;
+            }
         });
+
+        // Update bullets
+        this.updateBullets();
 
         // Check game over
         const loser = this.state.players.find(p => p.hp <= 0);
@@ -206,5 +226,52 @@ export class GameEngine {
             opponent.isGrounded = false;
             this.onHit?.();
         }
+    }
+
+    // 發射子彈
+    shootBullet(player: Player) {
+        const bullet: Bullet = {
+            id: this.bulletIdCounter++,
+            ownerId: player.peerId,
+            x: player.direction === 1 ? player.x + player.width : player.x - 10,
+            y: player.y + player.height / 2 - 5,
+            vx: player.direction * BULLET_SPEED,
+            color: player.color,
+        };
+        this.state.bullets.push(bullet);
+    }
+
+    // 更新子彈
+    updateBullets() {
+        const bulletsToRemove: number[] = [];
+
+        this.state.bullets.forEach(bullet => {
+            // 移動子彈
+            bullet.x += bullet.vx;
+
+            // 檢查是否超出邊界
+            if (bullet.x < -20 || bullet.x > CANVAS_WIDTH + 20) {
+                bulletsToRemove.push(bullet.id);
+                return;
+            }
+
+            // 檢查碰撞玩家
+            const hitPlayer = this.state.players.find(player =>
+                player.peerId !== bullet.ownerId &&
+                bullet.x > player.x &&
+                bullet.x < player.x + player.width &&
+                bullet.y > player.y &&
+                bullet.y < player.y + player.height
+            );
+
+            if (hitPlayer) {
+                hitPlayer.hp -= BULLET_DAMAGE;
+                bulletsToRemove.push(bullet.id);
+                this.onHit?.();
+            }
+        });
+
+        // 移除已處理的子彈
+        this.state.bullets = this.state.bullets.filter(b => !bulletsToRemove.includes(b.id));
     }
 }

@@ -47,6 +47,24 @@ export class Renderer {
             }
         });
 
+        // Draw Bullets
+        if (state.bullets) {
+            state.bullets.forEach(bullet => {
+                this.ctx.fillStyle = bullet.color;
+                this.ctx.beginPath();
+                this.ctx.arc(bullet.x, bullet.y, 6, 0, Math.PI * 2);
+                this.ctx.fill();
+
+                // 發光效果
+                this.ctx.shadowColor = bullet.color;
+                this.ctx.shadowBlur = 10;
+                this.ctx.beginPath();
+                this.ctx.arc(bullet.x, bullet.y, 4, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.shadowBlur = 0;
+            });
+        }
+
         if (state.status === 'GAME_OVER') {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.width, this.height);

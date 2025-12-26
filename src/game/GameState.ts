@@ -14,10 +14,21 @@ export interface Player {
     direction: 1 | -1; // 1 = right, -1 = left
     color: string;
     attackCooldown: number;
+    shootCooldown: number; // 子彈冷卻
+}
+
+export interface Bullet {
+    id: number;
+    ownerId: string; // 發射者的 peerId
+    x: number;
+    y: number;
+    vx: number;
+    color: string;
 }
 
 export interface GameState {
     players: Player[];
+    bullets: Bullet[];
     status: 'WAITING' | 'PLAYING' | 'GAME_OVER';
     winner?: string;
 }
@@ -25,3 +36,7 @@ export interface GameState {
 export const INITIAL_HP = 100;
 export const PLAYER_WIDTH = 50;
 export const PLAYER_HEIGHT = 100;
+export const BULLET_SPEED = 15;
+export const BULLET_DAMAGE = 5;
+export const SHOOT_COOLDOWN = 15; // 射擊冷卻幀數
+

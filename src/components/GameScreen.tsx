@@ -109,6 +109,7 @@ const GameScreen: React.FC = () => {
         engineRef.current.onJump = () => soundService.jump();
         engineRef.current.onAttack = () => soundService.attack();
         engineRef.current.onHit = () => soundService.hit();
+        engineRef.current.onShoot = () => soundService.shoot();
         engineRef.current.onGameOver = () => soundService.victory();
 
         // 追蹤上次遊戲狀態
@@ -186,6 +187,7 @@ const GameScreen: React.FC = () => {
                     <strong style={{ color: '#00f3ff' }}>PC 控制：</strong>
                     <span style={{ marginLeft: '10px' }}>移動: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>W A S D</code> 或 <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>方向鍵</code></span>
                     <span style={{ marginLeft: '15px' }}>攻擊: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>空白鍵</code> 或 <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>J</code></span>
+                    <span style={{ marginLeft: '15px' }}>子彈: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>K</code></span>
                 </div>
             </div>
         </div>

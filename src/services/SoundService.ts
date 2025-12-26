@@ -122,6 +122,29 @@ class SoundService {
         this.playTone(150, 0.1, 'sawtooth', 0.8);  // 音量 x4
     }
 
+    // 發射子彈音效
+    shoot() {
+        if (!this.enabled) return;
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.1);
+
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(this.masterGain);
+
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.1);
+    }
+
     // 命中音效
     hit() {
         if (!this.enabled) return;
