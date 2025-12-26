@@ -192,6 +192,9 @@ export class Renderer {
             });
         });
 
+        // 繪製平台
+        this.drawPlatforms(state);
+
         // 繪製地面
         const groundGradient = this.ctx.createLinearGradient(0, 500, 0, 600);
         groundGradient.addColorStop(0, '#2a2a40');
@@ -343,6 +346,25 @@ export class Renderer {
         this.ctx.quadraticCurveTo(x, y, x + r, y);
         this.ctx.closePath();
         this.ctx.fill();
+    }
+
+    private drawPlatforms(state: GameState) {
+        if (!state.platforms) return;
+
+        state.platforms.forEach(platform => {
+            this.ctx.shadowColor = platform.color;
+            this.ctx.shadowBlur = 15;
+            this.ctx.fillStyle = platform.color;
+
+            // Draw platform with rounded corners
+            this.roundRect(platform.x, platform.y, platform.width, platform.height, 5);
+
+            // Add a lighter top border for 3D effect
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            this.ctx.fillRect(platform.x + 5, platform.y, platform.width - 10, 2);
+
+            this.ctx.shadowBlur = 0;
+        });
     }
 
     // 輔助函數：加深顏色

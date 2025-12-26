@@ -27,14 +27,23 @@ export interface Bullet {
     size: number; // 子彈大小 (1 = 普通, 2 = 大)
 }
 
+export interface Platform {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    color: string;
+}
+
 export interface GameState {
     players: Player[];
     bullets: Bullet[];
+    platforms: Platform[];
     status: 'WAITING' | 'PLAYING' | 'GAME_OVER';
     winner?: string;
 }
 
-export const INITIAL_HP = 100;
+export const INITIAL_HP = 200;
 export const PLAYER_WIDTH = 50;
 export const PLAYER_HEIGHT = 100;
 export const BULLET_SPEED = 15;

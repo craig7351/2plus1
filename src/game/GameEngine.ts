@@ -44,6 +44,20 @@ export class GameEngine {
         this.state = {
             players: [],
             bullets: [],
+            platforms: [
+                // Middle High
+                { x: 300, y: 350, width: 200, height: 20, color: '#00ff88' },
+                // Left Low
+                { x: 50, y: 430, width: 150, height: 20, color: '#ff00ff' },
+                // Right Low
+                { x: 600, y: 430, width: 150, height: 20, color: '#00f3ff' },
+                // Top Center (Red)
+                { x: 200, y: 150, width: 400, height: 20, color: '#ff3333' },
+                // Top Left
+                { x: 100, y: 250, width: 100, height: 20, color: '#ffff33' },
+                // Top Right
+                { x: 600, y: 250, width: 100, height: 20, color: '#ffff33' }
+            ],
             status: 'WAITING'
         };
     }
@@ -309,6 +323,23 @@ export class GameEngine {
             player.vy += GRAVITY;
             player.x += player.vx;
             player.y += player.vy;
+
+            // Platform Collision
+            if (player.vy >= 0) { // Only check when falling
+                this.state.platforms.forEach(platform => {
+                    if (
+                        player.y + player.height >= platform.y &&
+                        player.y + player.height <= platform.y + player.vy + 10 && // Check if passing through from above
+                        player.x + player.width > platform.x &&
+                        player.x < platform.x + platform.width
+                    ) {
+                        player.y = platform.y - player.height;
+                        player.vy = 0;
+                        player.isGrounded = true;
+                        if (player.state === 'JUMP') player.state = 'IDLE';
+                    }
+                });
+            }
 
             // Ground Collision
             if (player.y + player.height >= GROUND_Y) {
