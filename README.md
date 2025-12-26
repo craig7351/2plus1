@@ -1,73 +1,76 @@
-# React + TypeScript + Vite
+# 2+1 對戰遊戲 🎮
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+一款基於 WebRTC 的即時多人對戰遊戲，支援 PC 和手機連線對戰！
 
-Currently, two official plugins are available:
+## 功能特色
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 🌐 **P2P 連線** - 使用 PeerJS 實現低延遲的點對點連線
+- 📱 **跨平台** - PC 鍵盤 + 手機觸控都能玩
+- 🤖 **AI 對手** - 內建 AI 玩家方便測試
+- 🎨 **炫酷特效** - 粒子系統、畫面震動、城市夜景背景
+- 🔊 **音效系統** - 跳躍、攻擊、命中等音效
 
-## React Compiler
+## 操作方式
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### PC 控制
+| 動作 | 按鍵 |
+|------|------|
+| 移動 | `W A S D` 或 `方向鍵` |
+| 攻擊 | `空白鍵` 或 `J` |
+| 射擊 | `K` |
+| 必殺技 | `後 → 下 → 前 → K` (0.5秒內) |
 
-## Expanding the ESLint configuration
+### 手機控制
+使用虛擬搖桿和按鈕
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## 快速開始
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+```bash
+# 安裝依賴
+npm install
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+# 啟動開發伺服器
+npm run dev
+# 或直接執行
+start.bat
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 停止伺服器
+stop.bat
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 遊戲流程
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+1. 開啟遊戲後會顯示 Room ID
+2. 選擇其一：
+   - 點擊「🎮 PC 加入遊戲」用鍵盤操作
+   - 點擊「🤖 加入 AI」和 AI 對戰
+   - 分享 Room ID 給朋友連線
+3. 兩位玩家加入後自動開始
+4. 打倒對手！Game Over 後可點擊 Restart 重新開始
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 技術棧
+
+- **前端框架**: React 19 + TypeScript
+- **建置工具**: Vite 7
+- **P2P 連線**: PeerJS
+- **路由**: React Router DOM
+
+## 專案結構
+
 ```
+src/
+├── components/     # React 元件
+│   ├── GameScreen.tsx   # 主遊戲畫面
+│   └── Lobby.tsx        # 大廳/連線頁面
+├── game/           # 遊戲邏輯
+│   ├── GameEngine.ts    # 遊戲引擎 (物理、碰撞、AI)
+│   ├── GameState.ts     # 狀態定義
+│   └── Renderer.ts      # Canvas 渲染器
+└── services/       # 服務
+    ├── PeerService.ts   # WebRTC 連線
+    └── SoundService.ts  # 音效播放
+```
+
+## License
+
+MIT

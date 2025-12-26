@@ -1,5 +1,5 @@
 import type { GameState, Player, Bullet } from './GameState';
-import { INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT, BULLET_SPEED, BULLET_DAMAGE, SHOOT_COOLDOWN } from './GameState';
+import { INITIAL_HP, PLAYER_WIDTH, PLAYER_HEIGHT, BULLET_SPEED, BULLET_DAMAGE, BIG_BULLET_DAMAGE, SHOOT_COOLDOWN } from './GameState';
 
 const GRAVITY = 0.5;
 const MOVE_SPEED = 5;
@@ -16,9 +16,12 @@ type InputState = {
     B: boolean;
 };
 
+export const AI_PEER_ID = 'AI_PLAYER';
+
 export class GameEngine {
     public state: GameState;
     private inputs: Map<string, InputState> = new Map();
+    private aiPlayers: Set<string> = new Set(); // 追蹤哪些玩家是 AI
 
     // 音效回調
     public onJump?: () => void;
@@ -29,6 +32,13 @@ export class GameEngine {
     public onGameOver?: (winner: string) => void;
 
     private bulletIdCounter = 0;
+
+    // 必殺技指令追蹤 (後下前B)
+    private inputHistory: Map<string, { input: string; time: number }[]> = new Map();
+    private readonly COMMAND_TIMEOUT = 500; // 指令輸入時限 (ms)
+
+    // 音效回調
+    public onSpecialShoot?: () => void;
 
     constructor() {
         this.state = {
@@ -104,9 +114,84 @@ export class GameEngine {
 
     removePlayer(peerId: string) {
         this.state.players = this.state.players.filter(p => p.peerId !== peerId);
+        this.aiPlayers.delete(peerId);
         if (this.state.players.length < 2 && this.state.status === 'PLAYING') {
             this.state.status = 'WAITING';
         }
+    }
+
+    // 加入 AI 玩家
+    addAI(): string {
+        const aiId = AI_PEER_ID + '_' + Date.now();
+        const playerId = this.addPlayer(aiId);
+        if (playerId) {
+            this.aiPlayers.add(aiId);
+        }
+        return playerId;
+    }
+
+    // AI 決策邏輯
+    private updateAI() {
+        this.aiPlayers.forEach(aiPeerId => {
+            const aiPlayer = this.state.players.find(p => p.peerId === aiPeerId);
+            const opponent = this.state.players.find(p => p.peerId !== aiPeerId);
+            if (!aiPlayer || !opponent) return;
+
+            const input = this.inputs.get(aiPeerId);
+            if (!input) return;
+
+            // 重置所有輸入
+            input.LEFT = false;
+            input.RIGHT = false;
+            input.UP = false;
+            input.A = false;
+            input.B = false;
+
+            const dx = opponent.x - aiPlayer.x;
+            const distance = Math.abs(dx);
+
+            // 移動向對手
+            if (distance > 100) {
+                if (dx > 0) {
+                    input.RIGHT = true;
+                } else {
+                    input.LEFT = true;
+                }
+            } else if (distance < 50) {
+                // 太近就後退
+                if (dx > 0) {
+                    input.LEFT = true;
+                } else {
+                    input.RIGHT = true;
+                }
+            }
+
+            // 閃避子彈
+            const incomingBullet = this.state.bullets.find(b =>
+                b.ownerId !== aiPeerId &&
+                Math.abs(b.y - (aiPlayer.y + aiPlayer.height / 2)) < 60 &&
+                ((b.vx > 0 && b.x < aiPlayer.x && b.x > aiPlayer.x - 200) ||
+                    (b.vx < 0 && b.x > aiPlayer.x && b.x < aiPlayer.x + 200))
+            );
+            if (incomingBullet && aiPlayer.isGrounded && Math.random() > 0.3) {
+                input.UP = true;
+            }
+
+            // 攻擊邏輯
+            if (distance < 80 && aiPlayer.attackCooldown <= 0 && Math.random() > 0.5) {
+                input.A = true;
+            }
+
+            // 射擊邏輯
+            if (distance > 80 && distance < 400 && aiPlayer.shootCooldown <= 0 && Math.random() > 0.7) {
+                input.B = true;
+            }
+
+            // 隨機跳躍
+            if (aiPlayer.isGrounded && Math.random() > 0.98) {
+                input.UP = true;
+            }
+        });
     }
 
     handleInput(peerId: string, input: string, pressed: boolean) {
@@ -114,11 +199,64 @@ export class GameEngine {
         if (playerInputs) {
             const key = input as keyof InputState;
             playerInputs[key] = pressed;
+
+            // 記錄按下的輸入歷史 (只記錄方向鍵)
+            if (pressed && (input === 'LEFT' || input === 'RIGHT' || input === 'DOWN')) {
+                this.recordInput(peerId, input);
+            }
         }
+    }
+
+    // 記錄輸入歷史
+    private recordInput(peerId: string, input: string) {
+        if (!this.inputHistory.has(peerId)) {
+            this.inputHistory.set(peerId, []);
+        }
+
+        const history = this.inputHistory.get(peerId)!;
+        history.push({ input, time: Date.now() });
+
+        // 只保留最近 10 個輸入
+        if (history.length > 10) {
+            history.shift();
+        }
+    }
+
+    // 檢查是否輸入了必殺技指令 (後下前 + B)
+    private checkSpecialCommand(peerId: string): boolean {
+        const history = this.inputHistory.get(peerId);
+        if (!history || history.length < 3) return false;
+
+        const player = this.state.players.find(p => p.peerId === peerId);
+        if (!player) return false;
+
+        const now = Date.now();
+        const recentInputs = history.filter(h => now - h.time < this.COMMAND_TIMEOUT);
+
+        if (recentInputs.length < 3) return false;
+
+        // 根據玩家方向決定「後」和「前」
+        const back = player.direction === 1 ? 'LEFT' : 'RIGHT';
+        const forward = player.direction === 1 ? 'RIGHT' : 'LEFT';
+
+        // 檢查最近三個輸入是否為 後下前
+        const last3 = recentInputs.slice(-3);
+        if (last3[0].input === back &&
+            last3[1].input === 'DOWN' &&
+            last3[2].input === forward) {
+            // 清除歷史，避免重複觸發
+            this.inputHistory.set(peerId, []);
+            return true;
+        }
+
+        return false;
     }
 
     update() {
         if (this.state.status !== 'PLAYING') return;
+
+        // 更新 AI 輸入
+        this.updateAI();
 
         this.state.players.forEach(player => {
             const input = this.inputs.get(player.peerId);
@@ -156,9 +294,15 @@ export class GameEngine {
 
             // Shoot (B 按鍵)
             if (input.B && player.shootCooldown <= 0) {
-                this.shootBullet(player);
+                // 檢查是否觸發必殺技
+                if (this.checkSpecialCommand(player.peerId)) {
+                    this.shootBullet(player, 2); // 大子彈
+                    this.onSpecialShoot?.();
+                } else {
+                    this.shootBullet(player, 1); // 普通子彈
+                    this.onShoot?.();
+                }
                 player.shootCooldown = SHOOT_COOLDOWN;
-                this.onShoot?.();
             }
 
             // Physics Application
@@ -229,14 +373,16 @@ export class GameEngine {
     }
 
     // 發射子彈
-    shootBullet(player: Player) {
+    shootBullet(player: Player, size: number = 1) {
+        const bulletSize = size * 6; // 子彈實際大小
         const bullet: Bullet = {
             id: this.bulletIdCounter++,
             ownerId: player.peerId,
-            x: player.direction === 1 ? player.x + player.width : player.x - 10,
-            y: player.y + player.height / 2 - 5,
-            vx: player.direction * BULLET_SPEED,
+            x: player.direction === 1 ? player.x + player.width : player.x - bulletSize,
+            y: player.y + player.height / 2 - bulletSize / 2,
+            vx: player.direction * BULLET_SPEED * (size === 2 ? 0.8 : 1), // 大子彈稍慢
             color: player.color,
+            size: size,
         };
         this.state.bullets.push(bullet);
     }
@@ -265,7 +411,9 @@ export class GameEngine {
             );
 
             if (hitPlayer) {
-                hitPlayer.hp -= BULLET_DAMAGE;
+                // 根據子彈大小決定傷害
+                const damage = bullet.size === 2 ? BIG_BULLET_DAMAGE : BULLET_DAMAGE;
+                hitPlayer.hp -= damage;
                 bulletsToRemove.push(bullet.id);
                 this.onHit?.();
             }

@@ -145,6 +145,42 @@ class SoundService {
         oscillator.stop(ctx.currentTime + 0.1);
     }
 
+    // 必殺技發射音效 (波動拳風格)
+    specialShoot() {
+        if (!this.enabled) return;
+        const ctx = this.ensureContext();
+        if (!ctx || !this.masterGain) return;
+
+        // 能量蓄積音
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sawtooth';
+        osc1.frequency.setValueAtTime(150, ctx.currentTime);
+        osc1.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.15);
+        gain1.gain.setValueAtTime(0.8, ctx.currentTime);
+        gain1.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+        osc1.connect(gain1);
+        gain1.connect(this.masterGain);
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.2);
+
+        // 發射音
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'square';
+        osc2.frequency.setValueAtTime(300, ctx.currentTime + 0.05);
+        osc2.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.3);
+        gain2.gain.setValueAtTime(1.0, ctx.currentTime + 0.05);
+        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+        osc2.connect(gain2);
+        gain2.connect(this.masterGain);
+        osc2.start(ctx.currentTime + 0.05);
+        osc2.stop(ctx.currentTime + 0.3);
+
+        // 噪音效果
+        this.playNoise(0.2, 0.6);
+    }
+
     // 命中音效
     hit() {
         if (!this.enabled) return;

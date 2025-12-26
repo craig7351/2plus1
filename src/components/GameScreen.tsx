@@ -13,6 +13,8 @@ const GameScreen: React.FC = () => {
     const [roomId, setRoomId] = useState<string>('Initializing...');
     const [playerCount, setPlayerCount] = useState(0);
     const [pcJoined, setPcJoined] = useState(false);
+    const [aiJoined, setAiJoined] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     // Game Logic Refs (to persist across renders without re-running effects)
@@ -30,6 +32,23 @@ const GameScreen: React.FC = () => {
             soundService.connected();
         }
     }, [pcJoined]);
+
+    // 讓 AI 加入遊戲
+    const handleAiJoin = useCallback(() => {
+        if (aiJoined) return;
+        const playerId = engineRef.current.addAI();
+        if (playerId) {
+            setAiJoined(true);
+            setPlayerCount(engineRef.current.state.players.length);
+            soundService.connected();
+        }
+    }, [aiJoined]);
+
+    // 重新開始遊戲
+    const handleRestart = useCallback(() => {
+        engineRef.current.restartGame();
+        setGameOver(false);
+    }, []);
 
     useEffect(() => {
         if (!canvasRef.current) return;
@@ -105,12 +124,58 @@ const GameScreen: React.FC = () => {
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
 
-        // 設置音效回調
-        engineRef.current.onJump = () => soundService.jump();
-        engineRef.current.onAttack = () => soundService.attack();
-        engineRef.current.onHit = () => soundService.hit();
+        // 設置音效和視覺回調
+        engineRef.current.onJump = () => {
+            soundService.jump();
+            // 跳躍時生成塵土粒子
+            const player = engineRef.current.state.players.find(p => p.state === 'JUMP');
+            if (player && rendererRef.current) {
+                rendererRef.current.spawnDustParticles(player.x, 500);
+            }
+        };
+        engineRef.current.onAttack = () => {
+            soundService.attack();
+            if (rendererRef.current) {
+                rendererRef.current.shake(3);
+            }
+        };
+        engineRef.current.onHit = () => {
+            soundService.hit();
+            if (rendererRef.current) {
+                rendererRef.current.shake(8);
+                // 在被打中的玩家位置生成粒子
+                const hitPlayer = engineRef.current.state.players.find(p => p.hp < 100);
+                if (hitPlayer) {
+                    rendererRef.current.spawnHitParticles(
+                        hitPlayer.x + hitPlayer.width / 2,
+                        hitPlayer.y + hitPlayer.height / 2,
+                        hitPlayer.color
+                    );
+                }
+            }
+        };
         engineRef.current.onShoot = () => soundService.shoot();
-        engineRef.current.onGameOver = () => soundService.victory();
+        engineRef.current.onSpecialShoot = () => {
+            soundService.specialShoot();
+            if (rendererRef.current) {
+                rendererRef.current.shake(12);
+                // 在發射者位置生成能量粒子
+                const shooter = engineRef.current.state.players.find(p =>
+                    engineRef.current.state.bullets.some(b => b.ownerId === p.peerId && b.size === 2)
+                );
+                if (shooter) {
+                    rendererRef.current.spawnSpecialParticles(
+                        shooter.x + shooter.width / 2,
+                        shooter.y + shooter.height / 2,
+                        shooter.color
+                    );
+                }
+            }
+        };
+        engineRef.current.onGameOver = () => {
+            soundService.victory();
+            setGameOver(true);
+        };
 
         // 追蹤上次遊戲狀態
         let lastStatus = engineRef.current.state.status;
@@ -167,14 +232,56 @@ const GameScreen: React.FC = () => {
                             🎮 PC 加入遊戲
                         </button>
                     )}
+                    {!aiJoined && playerCount < 2 && (
+                        <button
+                            onClick={handleAiJoin}
+                            style={{
+                                background: 'linear-gradient(135deg, #ff6600 0%, #cc4400 100%)',
+                                border: 'none',
+                                color: 'white',
+                                padding: '8px 16px',
+                                fontSize: '0.9rem',
+                                fontWeight: 'bold',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                            }}
+                        >
+                            🤖 加入 AI
+                        </button>
+                    )}
                     <div style={{ color: playerCount === 2 ? 'lime' : 'yellow', fontFamily: 'monospace' }}>
                         Players: {playerCount}/2
                     </div>
                 </div>
             </div>
 
-            <div className="canvas-container">
+            <div className="canvas-container" style={{ position: 'relative' }}>
                 <canvas ref={canvasRef} width={800} height={600} style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', background: '#000' }} />
+                {gameOver && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '70%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                    }}>
+                        <button
+                            onClick={handleRestart}
+                            style={{
+                                background: 'linear-gradient(135deg, #00ff88 0%, #00aa55 100%)',
+                                border: 'none',
+                                color: 'black',
+                                padding: '15px 40px',
+                                fontSize: '1.5rem',
+                                fontWeight: 'bold',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                boxShadow: '0 0 20px rgba(0, 255, 136, 0.5)',
+                            }}
+                        >
+                            🔄 RESTART
+                        </button>
+                    </div>
+                )}
             </div>
 
             <div style={{ textAlign: 'center', color: '#888', fontSize: '0.85rem', padding: '10px', background: '#1a1a1a' }}>
@@ -188,6 +295,9 @@ const GameScreen: React.FC = () => {
                     <span style={{ marginLeft: '10px' }}>移動: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>W A S D</code> 或 <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>方向鍵</code></span>
                     <span style={{ marginLeft: '15px' }}>攻擊: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>空白鍵</code> 或 <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>J</code></span>
                     <span style={{ marginLeft: '15px' }}>子彈: <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>K</code></span>
+                </div>
+                <div style={{ marginTop: '5px', color: '#ff6600' }}>
+                    <strong>🔥 必殺技：</strong> <code style={{ background: '#333', padding: '2px 6px', borderRadius: '3px' }}>後 → 下 → 前 → K</code> (0.5秒內輸入) 發射大子彈！
                 </div>
             </div>
         </div>
